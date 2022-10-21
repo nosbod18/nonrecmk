@@ -1,4 +1,5 @@
 MAKEFLAGS += -r
+SHELL := /bin/bash
 .SUFFIXES:
 .SECONDEXPANSION:
 .RECIPEPREFIX := >
@@ -6,27 +7,28 @@ MAKEFLAGS += -r
 OS        ?= $(shell uname -s)
 ARCH      ?= $(shell uname -m)
 MODE      ?= debug
-BUILD     ?= build/$(OS)-$(ARCH)-$(MODE)/
+BUILD     ?= .build/$(OS)-$(ARCH)-$(MODE)/
 MKEXT     ?= mk
 
 ifndef progress
-    total   != $(MAKE) $(MAKECMDGOALS) --dry-run progress="mark" | grep -c "mark"
-    count    = $(eval n != expr $n + 1)$n
-    progress = `expr $(count) '*' 100 / $(total)`
+    total   != $(MAKE) $(MAKECMDGOALS) -nrR progress="__here" | grep -c "__here"
+    n       := x
+    count    = $(words $n)$(eval n := x $n)
+    progress = printf "[%3d%%] " "$$(($(count) * 100 / $(total)))"
 endif
 
 compilerOf = $(if $(filter-out %.c.o %.m.o,$(filter %.o,$1)),CXX,CC)
 canonical  = $(patsubst $(CURDIR)/%,%,$(abspath $1))
 outdirOf   = $(BUILD)$(if $(suffix $1),lib,bin)
 flagsOf    = $1.$(if $(filter-out %.c.o %.m.o,$1),cxx,c)flags
-print      = $(if $V,$(strip $2),$(if $Q,@$2,@$(if $1,printf "[%3d%%] " "$(progress)"; printf $1;) $2))
+print      = $(if $V,$(strip $2),$(if $Q,@$2,@$(if $1,$(progress); printf $1;) $2))
 
 define add.mk
     sources   := # Project source files, supports wildcards, required
     includes  := # Directories to use as include path for the compiler, supports wildcards
     INCLUDES  :=
     depends   := # Subprojects this project depends on (i.e. the name of their .mk file without the .mk extension)
-    cflags    := # C compiler flags
+    cflags    := # count compiler flags
     CFLAGS    :=
     cxxflags  := # CXX compiler flags
     CXXFLAGS  :=
@@ -73,14 +75,16 @@ define add.a
             $$(eval $$o.cflags += $$($$d.CFLAGS))))
 
     $1.message := "\033[1;32mAR  $1\033[0m\n"
-    $1.command := $(AR) rcs $1 $$($1.objects)
+    $1.command := $(AR) -rcs $1 $$($1.objects)
 
     ifneq ($$(strip $$(filter %.a,$$($1.depends))),)
-        $1.command += && mkdir -p $(BUILD)$1.tmp\
+        $1.command += && mkdir -p $1.tmp\
+                      && cd $1.tmp\
                       $$(foreach a,$$(filter %.a,$$($1.depends)),\
-                        && $(AR) xo --output $(BUILD)$1.tmp $$a)\
-                      && $(AR) rcs $1 $(BUILD)$1.tmp/*.o\
-                      && rm -r $(BUILD)$1.tmp
+                        && $(AR) -xo $(CURDIR)/$$a)\
+                      && cd - > /dev/null\
+                      && $(AR) -rcs $1 $1.tmp/*.o\
+                      && rm -r $1.tmp
     endif
 endef
 
@@ -110,6 +114,10 @@ clean:
 run-%: $(BUILD)bin/$$*
 > $(call print,"\033[1;36mRUN $^\033[0m\n", ./$^)
 .PHONY: run-%
+
+print-%:
+> @printf "$* = $($*)\n"
+.PHONY: print-%
 
 ifneq ($(MAKECOMMANDGOALS),clean)
     $(foreach m,$(modules),$(eval $(call add.mk,$m)))
