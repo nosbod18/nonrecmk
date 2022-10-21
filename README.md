@@ -21,7 +21,7 @@ sources := src/a.c src/b.c # or src/*.c
 This creates an executable called `main` from the source files src/a.c and src/b.c, where the src directory is relative to the `main.mk` file, not the Makefile. More complicated examples are given in the [examples](https://www.github.com/nosbod18/nonrecmk/tree/main/examples) directory.
 
 ### Output
-The build files are outputed to the directories `build/$(OS)-$(ARCH)-$(MODE)/{bin,lib,obj}`, depending on the output file's extension, where `$(OS)`, `$(ARCH)`, and `$(MODE)` are defined as
+The build files are outputed to the directories `.build/$(OS)-$(ARCH)-$(MODE)/{bin,lib,obj}`, depending on the output file's extension, where `$(OS)`, `$(ARCH)`, and `$(MODE)` are defined as
 
 ```Makefile
 OS   ?= $(shell uname -s) # Darwin, Linux, or Windows_NT for Mac, Linux, and Windows respectively
