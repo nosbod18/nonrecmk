@@ -65,7 +65,7 @@ endef
 
 define add.o
     $1.depends := $(1:$(BUILD)obj/%.o=%)
-    $1.message := "\033[0;32m%-3s $1\033[0m\n" "$$(call compilerOf,$1)"
+    $1.message := "\033[0;32m%-3s $$($1.depends)\033[0m\n" "$$(call compilerOf,$1)"
     $1.command := $$($$(call compilerOf,$1)) $$($$(call flagsOf,$1)) -MMD -MP -c -o $1 $$($1.depends)
 endef
 
@@ -74,7 +74,7 @@ define add.a
         $$(foreach o,$$($1.objects),\
             $$(eval $$o.cflags += $$($$d.CFLAGS))))
 
-    $1.message := "\033[1;32mAR  $1\033[0m\n"
+    $1.message := "\033[1;32mAR  $$(notdir $1)\033[0m\n"
     $1.command := $(AR) -rcs $1 $$($1.objects)
 
     ifneq ($$(strip $$(filter %.a,$$($1.depends))),)
@@ -94,7 +94,7 @@ define add
         $$(foreach o,$$($1.objects),\
             $$(eval $$o.cflags += $$($$d.CFLAGS))))
 
-    $1.message := "\033[1;32mLD  $1\033[0m\n"
+    $1.message := "\033[1;32mLD  $$(notdir $1)\033[0m\n"
     $1.command := $$($$(call compilerOf,$$($1.depends))) -o $1 $$($1.objects) $$($1.ldflags) $$($1.LDFLAGS)
 endef
 
