@@ -7,80 +7,118 @@ OS        ?= $(shell uname -s)
 ARCH      ?= $(shell uname -m)
 MODE      ?= debug
 BUILD     ?= build/$(OS)-$(ARCH)-$(MODE)/
-MKNAME    ?= project.mk
+MKEXT     ?= mk
 
-compilerof = $(if $(filter-out %.c.o %.m.o,$(filter %.o,$1)),CXX,CC)
+ifndef progress
+    total   != $(MAKE) $(MAKECMDGOALS) --dry-run progress="mark" | grep -c "mark"
+    count    = $(eval n != expr $n + 1)$n
+    progress = `expr $(count) '*' 100 / $(total)`
+endif
+
+compilerOf = $(if $(filter-out %.c.o %.m.o,$(filter %.o,$1)),CXX,CC)
 canonical  = $(patsubst $(CURDIR)/%,%,$(abspath $1))
-flagsof    = $1.$(if $(filter-out %.c.o %.m.o,$(filter %.o,$1)),CXX,C)FLAGS
-print      = $(if $V,$(strip $2),$(if $Q,@$2,@$(if $1,printf $1;) $2))
+outdirOf   = $(BUILD)$(if $(suffix $1),lib,bin)
+flagsOf    = $1.$(if $(filter-out %.c.o %.m.o,$1),cxx,c)flags
+print      = $(if $V,$(strip $2),$(if $Q,@$2,@$(if $1,printf "[%3d%%] " "$(progress)"; printf $1;) $2))
 
 define add.mk
-    TARGET   := # Name of project, required
-    SOURCES  := # Project source files, supports wildcards, required
-    INCLUDE  := # Directories to use as include path for compiler (-I...), supports wildcards
-    DEPENDS  := # Subprojects this project depends on (automatically links any libraries)
-    CFLAGS   := # C compiler flags
-    CXXFLAGS := # CXX compiler flags
-    LDFLAGS  := # Linker flags
+    sources   := # Project source files, supports wildcards, required
+    includes  := # Directories to use as include path for the compiler, supports wildcards
+    INCLUDES  :=
+    depends   := # Subprojects this project depends on (i.e. the name of their .mk file without the .mk extension)
+    cflags    := # C compiler flags
+    CFLAGS    :=
+    cxxflags  := # CXX compiler flags
+    CXXFLAGS  :=
+    ldflags   := # Linker flags (don't worry about linking any library subprojects, that happens automatically)
+    LDFLAGS   :=
 
     include $1
+    $$(if $$(strip $$(sources)),,$$(error $1: No source files were provided))
 
-    $$(if $$(strip $$(TARGET)),,$$(error $1: TARGET cannot be empty))
-    $$(if $$(strip $$(SOURCES)),,$$(error $1: SOURCES cannot be empty))
+    t             := $$(call outdirOf,$$(basename $1))/$$(notdir $$(basename $1))
+    $$t.sources   := $$(strip $$(wildcard $$(call canonical,$$(sources:%=$$(dir $1)%))))
+    $$t.objects   := $$(strip $$($$t.sources:%=$$(BUILD)obj/%.o))
+    $$t.includes  := $$(strip $$(addprefix -I,$$(wildcard $$(call canonical,$$(includes:%=$$(dir $1)%)))))
+    $$t.INCLUDES  := $$(strip $$(addprefix -I,$$(wildcard $$(call canonical,$$(INCLUDES:%=$$(dir $1)%)))))
+    $$t.depends   := $$(strip $$(foreach d,$$(depends),$$(call outdirOf,$$d)/$$d) $$($$t.objects) $1)
+    $$t.DEPENDS   := $$(strip $$(foreach d,$$(DEPENDS),$$(call outdirOf,$$d)/$$d))
+    $$t.cflags    := $$(strip $$(cflags) $$($$t.includes))
+    $$t.CFLAGS    := $$(strip $$(CFLAGS) $$($$t.INCLUDES))
+    $$t.cxxflags  := $$(strip $$(cxxflags) $$($$t.includes))
+    $$t.CXXFLAGS  := $$(strip $$(CXXFLAGS) $$($$t.INCLUDES))
+    $$t.ldflags   := $$(strip -L$(BUILD)lib $$(patsubst lib%.a,-l%,$$(filter %.a,$$(notdir $$($$t.depends)))) $$(ldflags))
+    $$t.LDFLAGS   := $$(strip $$(LDFLAGS))
 
-    T := $(BUILD)$$(if $$(suffix $$(TARGET)),lib,bin)/$$(TARGET)
+    $$(foreach o,$$($$t.objects),\
+        $$(eval $$o.cflags   := $$($$t.cflags)   $$($$t.CFLAGS))\
+        $$(eval $$o.cxxflags := $$($$t.cxxflags) $$($$t.CXXFLAGS)))
 
-    $$T.SOURCES := $$(wildcard $$(call canonical,$$(SOURCES:%=$$(dir $1)%)))
-    $$T.INCLUDE := $$(wildcard $$(call canonical,$$(INCLUDE:%=$$(dir $1)%)))
-    $$T.OBJECTS := $$($$T.SOURCES:%=$$(BUILD)obj/%.o)
-    $$T.DEPENDS := $$(foreach d,$$(DEPENDS),$(BUILD)$$(if $$(suffix $$d),lib,bin)/$$d) $1
-    $$T.LDFLAGS := $$(LDFLAGS) -L$(BUILD)lib $$(patsubst lib%.a,-l%,$$(filter %.a,$$(DEPENDS)))
+    # Add an alias command so you can specify the name of the project as a make argument
+    $$(notdir $$(basename $1)): $$t
 
-    $$(foreach o,$$($$T.OBJECTS),\
-        $$(eval $$o.CFLAGS := $$(CFLAGS))\
-        $$(eval $$o.CXXFLAGS := $$(CXXFLAGS))\
-        $$(eval $$(call flagsof,$$o) += $$($$T.INCLUDE:%=-I%)))
-
-    targets += $$T
-    files += $$T $$($$T.OBJECTS)
+    targets       += $$t
+    files         += $$t $$($$t.objects)
 endef
 
 define add.o
-    $1.DEPENDS := $(1:$(BUILD)obj/%.o=%)
-    $1.MESSAGE := "%-3s $1\n" "$$(call compilerof,$1)"
-    $1.COMMAND := $$($$(call compilerof,$1)) -c -o $1 $$($1.DEPENDS) $$($$(call flagsof,$1)) -MMD -MP
+    $1.depends := $(1:$(BUILD)obj/%.o=%)
+    $1.message := "\033[0;32m%-3s $1\033[0m\n" "$$(call compilerOf,$1)"
+    $1.command := $$($$(call compilerOf,$1)) $$($$(call flagsOf,$1)) -MMD -MP -c -o $1 $$($1.depends)
 endef
 
 define add.a
-    $1.DEPENDS += $$($1.OBJECTS)
-    $1.MESSAGE := "AR  $1\n"
-    $1.COMMAND := $(AR) rcs $1 $$($1.OBJECTS)
+    $$(foreach d,$$($1.depends),\
+        $$(foreach o,$$($1.objects),\
+            $$(eval $$o.cflags += $$($$d.CFLAGS))))
+
+    $1.message := "\033[1;32mAR  $1\033[0m\n"
+    $1.command := $(AR) rcs $1 $$($1.objects)
+
+    ifneq ($$(strip $$(filter %.a,$$($1.depends))),)
+        $1.command += && mkdir -p $(BUILD)$1.tmp\
+                      $$(foreach a,$$(filter %.a,$$($1.depends)),\
+                        && $(AR) xo --output $(BUILD)$1.tmp $$a)\
+                      && $(AR) rcs $1 $(BUILD)$1.tmp/*.o\
+                      && rm -r $(BUILD)$1.tmp
+    endif
 endef
 
 define add
-    $1.DEPENDS += $$($1.OBJECTS)
-    $1.MESSAGE := "LD  $1\n"
-    $1.COMMAND := $$($$(call compilerof,$$($1.DEPENDS))) -o $1 $$($1.OBJECTS) $$($1.LDFLAGS)
+    $$(foreach d,$$($1.depends),\
+        $$(eval $1.ldflags += $$($$d.LDFLAGS))\
+        $$(foreach o,$$($1.objects),\
+            $$(eval $$o.cflags += $$($$d.CFLAGS))))
+
+    $1.message := "\033[1;32mLD  $1\033[0m\n"
+    $1.command := $$($$(call compilerOf,$$($1.depends))) -o $1 $$($1.objects) $$($1.ldflags) $$($1.LDFLAGS)
 endef
 
 ifneq ($(MAKECOMMANDGOALS),clean)
-    modules := $(shell find . -name $(MKNAME) | cut -c3-) # cut -c3- removes the leading ./
+    modules := $(shell find . -name '*.$(MKEXT)' | cut -c3-) # cut -c3- removes the leading ./
     targets :=
     files   :=
+endif
+
+all: $$(targets)
+.PHONY: all
+
+clean:
+> $(call print,"\033[1;33mRM  $(BUILD)\033[0m\n",rm -rf $(BUILD))
+.PHONY: clean
+
+run-%: $(BUILD)bin/$$*
+> $(call print,"\033[1;36mRUN $^\033[0m\n", ./$^)
+.PHONY: run-%
+
+ifneq ($(MAKECOMMANDGOALS),clean)
     $(foreach m,$(modules),$(eval $(call add.mk,$m)))
     $(foreach f,$(files),$(eval $(call add$(suffix $f),$f)))
 endif
 
-all: $(targets)
-.PHONY: all
-
-clean:
-> $(call print,"RM  $(BUILD)\n",rm -rf $(BUILD))
-.PHONY: clean
-
-$(files): $$($$@.DEPENDS)
+$(files): $$($$@.depends)
 > $(call print,,mkdir -p $(@D))
-> $(call print,$($@.MESSAGE),$($@.COMMAND))
+> $(call print,$($@.message),$($@.command))
 
 ifneq ($(MAKECOMMANDGOALS),clean)
     -include $(shell find $(BUILD) -name '*.d' 2>/dev/null)
