@@ -6,7 +6,7 @@ MAKEFLAGS += -r
 OS        ?= $(shell uname -s)
 ARCH      ?= $(shell uname -m)
 MODE      ?= debug
-BUILD     ?= build/$(OS)-$(ARCH)-$(MODE)/
+BUILD     ?= .build/$(OS)-$(ARCH)-$(MODE)/
 MKEXT     ?= mk
 
 ifndef progress
@@ -95,7 +95,9 @@ define add
 endef
 
 ifneq ($(MAKECOMMANDGOALS),clean)
+    $(info Doing $$(shell find . -name '*.$(MKEXT)' | cut -c3-))
     modules := $(shell find . -name '*.$(MKEXT)' | cut -c3-) # cut -c3- removes the leading ./
+    $(info Done)
     targets :=
     files   :=
 endif
@@ -112,8 +114,11 @@ run-%: $(BUILD)bin/$$*
 .PHONY: run-%
 
 ifneq ($(MAKECOMMANDGOALS),clean)
+    $(info Doing add.mk)
     $(foreach m,$(modules),$(eval $(call add.mk,$m)))
+    $(info Doing add$$(suffix $$f))
     $(foreach f,$(files),$(eval $(call add$(suffix $f),$f)))
+    $(info Done)
 endif
 
 $(files): $$($$@.depends)

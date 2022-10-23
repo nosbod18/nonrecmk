@@ -18,7 +18,7 @@ The absolute minimum required in a project file is a list of source files requir
 sources := src/a.c src/b.c # or src/*.c
 ```
 
-This creates an executable called `main` from the source files src/a.c and src/b.c, where the src directory is relative to the `main.mk` file, not the Makefile. More complicated examples are given in the [examples](https://www.github.com/nosbod18/nonrecmk/tree/main/examples) directory.
+This creates an executable called `main` from the source files src/a.c and src/b.c, where the src directory is relative to `main.mk`, not the Makefile. A more complicated example is given in the [example](https://www.github.com/nosbod18/nonrecmk/tree/main/example) directory.
 
 ### Variables
 In a project file, there are a few predefined variables you can fill out. `sources`, like in the minimal example, is one of them. These variables have the ability to propogate up through a projects dependencies, much like CMake's `PUBLIC` and `PRIVATE` specifiers. Since Make does not have specifiers like that, the convention I have chosen to go with is uppercase names representing public variables, and lowercase names representing private ones. For example, if you had a library with the public API headers in an `include` directory and private API headers in the `src` directory, you could write

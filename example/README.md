@@ -1,3 +1,1 @@
-# app-with-libs
-
 This directory defines a sample project that has an executable `app` that depends on a few libraries, `libx.a`, `liby.a`, and `libz.a`. `liby.a` also depends on `libz.a`. Run `make` to build everything or `make run-app` to build and run the executable.
