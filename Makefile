@@ -17,10 +17,10 @@ ifndef progress
     progress = printf "[%3d%%] " "$$(($(count) * 100 / $(total)))"
 endif
 
-compilerOf = $(if $(filter-out %.c.o %.m.o,$(filter %.o,$1)),CXX,CC)
+compilerof = $(if $(filter-out %.c.o %.m.o,$(filter %.o,$1)),CXX,CC)
 canonical  = $(patsubst $(CURDIR)/%,%,$(abspath $1))
-outdirOf   = $(BUILD)$(if $(suffix $1),lib,bin)
-flagsOf    = $1.$(if $(filter-out %.c.o %.m.o,$1),cxx,c)flags
+outdirof   = $(BUILD)$(if $(suffix $1),lib,bin)
+flagsof    = $1.$(if $(filter-out %.c.o %.m.o,$1),cxx,c)flags
 print      = $(if $V,$(strip $2),$(if $Q,@$2,@$(if $1,$(progress); printf $1;) $2))
 
 define add.mk
@@ -38,13 +38,13 @@ define add.mk
     include $1
     $$(if $$(strip $$(sources)),,$$(error $1: No source files were provided))
 
-    t             := $$(call outdirOf,$$(basename $1))/$$(notdir $$(basename $1))
+    t             := $$(call outdirof,$$(basename $1))/$$(notdir $$(basename $1))
     $$t.sources   := $$(strip $$(wildcard $$(call canonical,$$(sources:%=$$(dir $1)%))))
     $$t.objects   := $$(strip $$($$t.sources:%=$$(BUILD)obj/%.o))
     $$t.includes  := $$(strip $$(addprefix -I,$$(wildcard $$(call canonical,$$(includes:%=$$(dir $1)%)))))
     $$t.INCLUDES  := $$(strip $$(addprefix -I,$$(wildcard $$(call canonical,$$(INCLUDES:%=$$(dir $1)%)))))
-    $$t.depends   := $$(strip $$(foreach d,$$(depends),$$(call outdirOf,$$d)/$$d) $$($$t.objects) $1)
-    $$t.DEPENDS   := $$(strip $$(foreach d,$$(DEPENDS),$$(call outdirOf,$$d)/$$d))
+    $$t.depends   := $$(strip $$(foreach d,$$(depends),$$(call outdirof,$$d)/$$d) $$($$t.objects) $1)
+    $$t.DEPENDS   := $$(strip $$(foreach d,$$(DEPENDS),$$(call outdirof,$$d)/$$d))
     $$t.cflags    := $$(strip $$(cflags) $$($$t.includes))
     $$t.CFLAGS    := $$(strip $$(CFLAGS) $$($$t.INCLUDES))
     $$t.cxxflags  := $$(strip $$(cxxflags) $$($$t.includes))
@@ -65,8 +65,8 @@ endef
 
 define add.o
     $1.depends := $(1:$(BUILD)obj/%.o=%)
-    $1.message := "\033[0;32m%-3s $$($1.depends)\033[0m\n" "$$(call compilerOf,$1)"
-    $1.command := $$($$(call compilerOf,$1)) $$($$(call flagsOf,$1)) -MMD -MP -c -o $1 $$($1.depends)
+    $1.message := "\033[0;32m%-3s $$($1.depends)\033[0m\n" "$$(call compilerof,$1)"
+    $1.command := $$($$(call compilerof,$1)) $$($$(call flagsof,$1)) -MMD -MP -c -o $1 $$($1.depends)
 endef
 
 define add.a
@@ -95,7 +95,7 @@ define add
             $$(eval $$o.cflags += $$($$d.CFLAGS))))
 
     $1.message := "\033[1;32mLD  $$(notdir $1)\033[0m\n"
-    $1.command := $$($$(call compilerOf,$$($1.depends))) -o $1 $$($1.objects) $$($1.ldflags) $$($1.LDFLAGS)
+    $1.command := $$($$(call compilerof,$$($1.depends))) -o $1 $$($1.objects) $$($1.ldflags) $$($1.LDFLAGS)
 endef
 
 ifneq ($(MAKECOMMANDGOALS),clean)
