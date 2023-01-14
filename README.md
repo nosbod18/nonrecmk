@@ -31,9 +31,9 @@ includes := src
 INCLUDES := include
 ```
 
-Now whenever you reference this project as a dependency for another one, that project will automatically be able to access libxyz.a's include directory without having to specify it manually.
+Now whenever you reference this project as a dependency for another one, that project will automatically be able to access libxyz.a's include directory, but not its src directory, without having to specify it manually.
 
-Another example that I find even more useful is if you have a library that uses platform specific libraries, you can specify them in the libraries project file and they will be correctly linked in the binary's project file, even though no linking happens when compiling the library at all. Check out a more in depth example in my [wtk](https://www.github.com/nosbod18/wtk) repo.
+Another potentially more practical example is if you have a library that uses platform specific libraries, you can specify them in the library's project file and they will be correctly linked to any binaries that depend on the library, even though no linking happens when compiling the library.
 
 The full list of predefined variables for a project file is
 
@@ -56,7 +56,7 @@ There are no public variables for `sources` and `depends` because I don't think 
 The build files are outputed to the directories `.build/$(OS)-$(ARCH)-$(MODE)/{bin,lib,obj}`, depending on the output file's extension, where `$(OS)`, `$(ARCH)`, and `$(MODE)` are defined as
 
 ```Makefile
-OS   ?= $(shell uname -s) # Darwin, Linux, or Windows_NT for Mac, Linux, and Windows respectively
+OS   := $(if $(OS),win32,$(subst darwin,macos,$(shell uname -s | tr [A-Z] [a-z]))) # macos, linux, or win32
 ARCH ?= $(shell uname -m) # x86_64, x86, ...
 MODE ?= debug             # Debug mode by default
 ```

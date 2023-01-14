@@ -4,33 +4,26 @@ SHELL := /bin/bash
 .SECONDEXPANSION:
 .RECIPEPREFIX := >
 
-OS        ?= $(shell uname -s)
+OS        := $(if $(OS),win32,$(subst darwin,macos,$(shell uname -s | tr [A-Z] [a-z])))
 ARCH      ?= $(shell uname -m)
 MODE      ?= debug
 BUILD     ?= .build/$(OS)-$(ARCH)-$(MODE)/
 MKEXT     ?= mk
 
-ifndef progress
-    total   != $(MAKE) $(MAKECMDGOALS) -nrR progress="__here" | grep -c "__here"
-    n       := x
-    count    = $(words $n)$(eval n := x $n)
-    progress = printf "[%3d%%] " "$$(($(count) * 100 / $(total)))"
-endif
-
 compilerof = $(if $(filter-out %.c.o %.m.o,$(filter %.o,$1)),CXX,CC)
 canonical  = $(patsubst $(CURDIR)/%,%,$(abspath $1))
 outdirof   = $(BUILD)$(if $(suffix $1),lib,bin)
 flagsof    = $1.$(if $(filter-out %.c.o %.m.o,$1),cxx,c)flags
-print      = $(if $V,$(strip $2),$(if $Q,@$2,@$(if $1,$(progress); printf $1;) $2))
+print      = $(if $V,$(strip $2),$(if $Q,@$2,@$(if $1,printf $1;) $2))
 
 define add.mk
     sources   := # Project source files, supports wildcards, required
     includes  := # Directories to use as include path for the compiler, supports wildcards
     INCLUDES  :=
     depends   := # Subprojects this project depends on (i.e. the name of their .mk file without the .mk extension)
-    cflags    := # count compiler flags
+    cflags    := # C compiler flags
     CFLAGS    :=
-    cxxflags  := # CXX compiler flags
+    cxxflags  := # C++ compiler flags
     CXXFLAGS  :=
     ldflags   := # Linker flags (don't worry about linking any library subprojects, that happens automatically)
     LDFLAGS   :=
@@ -98,10 +91,8 @@ define add
     $1.command := $$($$(call compilerof,$$($1.depends))) -o $1 $$($1.objects) $$($1.ldflags) $$($1.LDFLAGS)
 endef
 
-ifneq ($(MAKECOMMANDGOALS),clean)
-    $(info Doing $$(shell find . -name '*.$(MKEXT)' | cut -c3-))
+ifneq ($(MAKECMDGOALS),clean)
     modules := $(shell find . -name '*.$(MKEXT)' | cut -c3-) # cut -c3- removes the leading ./
-    $(info Done)
     targets :=
     files   :=
 endif
@@ -121,18 +112,15 @@ print-%:
 > @printf "$* = $($*)\n"
 .PHONY: print-%
 
-ifneq ($(MAKECOMMANDGOALS),clean)
-    $(info Doing add.mk)
+ifneq ($(MAKECMDGOALS),clean)
     $(foreach m,$(modules),$(eval $(call add.mk,$m)))
-    $(info Doing add$$(suffix $$f))
     $(foreach f,$(files),$(eval $(call add$(suffix $f),$f)))
-    $(info Done)
 endif
 
 $(files): $$($$@.depends)
 > $(call print,,mkdir -p $(@D))
 > $(call print,$($@.message),$($@.command))
 
-ifneq ($(MAKECOMMANDGOALS),clean)
+ifneq ($(MAKECMDGOALS),clean)
     -include $(shell find $(BUILD) -name '*.d' 2>/dev/null)
 endif
