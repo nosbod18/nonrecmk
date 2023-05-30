@@ -1,3 +1,3 @@
-sources  := source/liby.c
-INCLUDES := include
-depends  := libz.a
+srcs := src/liby.c
+INCS := inc
+deps := libz.a

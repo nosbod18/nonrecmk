@@ -1,2 +1,2 @@
-sources  := source/libz.c
-INCLUDES := include
+srcs := src/libz.c
+INCS := inc

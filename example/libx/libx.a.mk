@@ -1,2 +1,2 @@
-sources  := source/libx.c
-INCLUDES := include
+srcs := src/libx.c
+INCS := inc

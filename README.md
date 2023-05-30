@@ -15,20 +15,20 @@ The absolute minimum required in a project file is a list of source files requir
 ```Makefile
 # File: main.mk
 
-sources := src/a.c src/b.c # or src/*.c
+srcs := src/a.c src/b.c # or src/*.c
 ```
 
 This creates an executable called `main` from the source files src/a.c and src/b.c, where the src directory is relative to `main.mk`, not the Makefile. A more complicated example is given in the [example](https://www.github.com/nosbod18/nonrecmk/tree/main/example) directory.
 
 ### Variables
-In a project file, there are a few predefined variables you can fill out. `sources`, like in the minimal example, is one of them. These variables have the ability to propogate up through a projects dependencies, much like CMake's `PUBLIC` and `PRIVATE` specifiers. Since Make does not have specifiers like that, the convention I have chosen to go with is uppercase names representing public variables, and lowercase names representing private ones. For example, if you had a library with the public API headers in an `include` directory and private API headers in the `src` directory, you could write
+In a project file, there are a few predefined variables you can fill out. `srcs`, like in the minimal example, is one of them. These variables have the ability to propogate up through a projects dependencies, much like CMake's `PUBLIC` and `PRIVATE` specifiers. Since Make does not have specifiers like that, the convention I have chosen to go with is uppercase names representing public variables, and lowercase names representing private ones. For example, if you had a library with the public API headers in an `include` directory and private API headers in the `src` directory, you could write
 
 ```Makefile
 # File: libxyz.a.mk
 
-sources  := src/*.c
-includes := src
-INCLUDES := include
+srcs := src/*.c
+incs := src
+INCS := include
 ```
 
 Now whenever you reference this project as a dependency for another one, that project will automatically be able to access libxyz.a's include directory, but not its src directory, without having to specify it manually.
@@ -38,25 +38,25 @@ Another potentially more practical example is if you have a library that uses pl
 The full list of predefined variables for a project file is
 
 ```Makefile
-sources   := # Project source files, supports wildcards, required
-includes  := # Directories to use as include path for the compiler, supports wildcards
-INCLUDES  :=
-depends   := # Subprojects this project depends on (i.e. the name of their .mk file without the .mk extension)
-cflags    := # C compiler flags
-CFLAGS    :=
-cxxflags  := # CXX compiler flags
-CXXFLAGS  :=
-ldflags   := # Linker flags (don't worry about linking any library subprojects, that happens automatically)
-LDFLAGS   :=
+srcs     := # Project source files, supports wildcards, required
+incs     := # Directories to use as include path for the compiler, supports wildcards
+INCS     :=
+deps     := # Subprojects this project depends on (i.e. the name of their .mk file without the .mk extension)
+cflags   := # C compiler flags
+CFLAGS   :=
+cxxflags := # CXX compiler flags
+CXXFLAGS :=
+ldflags  := # Linker flags (don't worry about linking any library subprojects, that happens automatically)
+LDFLAGS  :=
 ```
 
-There are no public variables for `sources` and `depends` because I don't think it makes sense to have them. If you can think of a situation where those would be necessary please let me know.
+There are no public variables for `srcs` and `deps` because I don't think it makes sense to have them. If you can think of a situation where those would be necessary please let me know.
 
 ### Output
 The build files are outputed to the directories `.build/$(OS)-$(ARCH)-$(MODE)/{bin,lib,obj}`, depending on the output file's extension, where `$(OS)`, `$(ARCH)`, and `$(MODE)` are defined as
 
 ```Makefile
-OS   := $(if $(OS),win32,$(subst darwin,macos,$(shell uname -s | tr [A-Z] [a-z]))) # macos, linux, or win32
+OS   := $(if $(OS),Windows,$(subst Darwin,MacOS,$(shell uname -s))) # Windows, MacOS, Linux, ...
 ARCH ?= $(shell uname -m) # x86_64, x86, ...
 MODE ?= debug             # Debug mode by default
 ```

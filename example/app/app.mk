@@ -1,2 +1,2 @@
-sources := main.c
-depends := libx.a liby.a
+srcs := main.c
+deps := libx.a liby.a
