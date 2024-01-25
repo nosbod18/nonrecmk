@@ -1,2 +1,3 @@
+type := executable
 srcs := main.c
-deps := libx.a liby.a
+deps := x y

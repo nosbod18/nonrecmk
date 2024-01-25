@@ -1,9 +1,9 @@
-#include "libx/libx.h"
-#include "liby/liby.h"
+#include "x/x.h"
+#include "y/y.h"
 #include <stdio.h>
 
 int main(void) {
-    libxSayHello();
-    libySayHello();
+    XSayHello();
+    YSayHello();
     printf("Hello from app!\n");
 }
